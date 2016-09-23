@@ -39,6 +39,46 @@
                     <option value="production">VMPAYMENT_FLUTTERWAVE_LIVE_MODE</option>
                 </field>
             </fieldset>
+            <fieldset name="payment"  addfieldpath="/administrator/components/com_virtuemart/fields">
+                <field type="vmtitle" default="VMPAYMENT_FLUTTERWAVE_API_CREDENTIALS"/>
+                
+                <field name="payment_currency" type="vmacceptedcurrency" default="" label="VMPAYMENT_FLUTTERWAVE_CURRENCY"
+                       description="VMPAYMENT_FLUTTERWAVE_CURRENCY"/>
+                <field name="status_pending" type="vmorderstate" scope="com_virtuemart" default="U"
+                       label="VMPAYMENT_FLUTTERWAVE_STATUS_PENDING" description="VMPAYMENT_FLUTTERWAVE_STATUS_PENDING"/>
+                <field name="send_invoice_on_order_null" type="radio" scope="com_virtuemart" default="1"
+                       label="VMPAYMENT_FLUTTERWAVE_SEND_INVOICE_ON_ORDER_NULL"
+                       description="VMPAYMENT_FLUTTERWAVE_SEND_INVOICE_ON_ORDER_NULL">
+                    <option value="0">COM_VIRTUEMART_NO</option>
+                    <option value="1">COM_VIRTUEMART_YES</option>
+                </field>
+            </fieldset>
+            <fieldset name="template">
+                <field name="payment_logos" type="vmfiles" multiple="true" directory="/images/stories/virtuemart/payment"
+                       hide_none="1" label="VMPAYMENT_FLUTTERWAVE_LOGOS"
+                       size="40"
+                       description="VMPAYMENT_FLUTTERWAVE_LOGOS"/>
+                <field name="payment_info" type="textarea" cols="35" rows="5" label="VMPAYMENT_FLUTTERWAVE_PAYMENTINFO"
+                       description="VMPAYMENT_FLUTTERWAVE_PAYMENTINFO"/>
+            </fieldset>
+            <fieldset name="restrictions" >
+                <field name="countries" multiple="true" type="vmcountries" scope="com_virtuemart" default=""
+                       label="VMPAYMENT_FLUTTERWAVE_COUNTRIES" description="VMPAYMENT_FLUTTERWAVE_COUNTRIES"/>
+                <field name="min_amount" type="text" label="VMPAYMENT_FLUTTERWAVE_MIN_AMOUNT"
+                       description="VMPAYMENT_FLUTTERWAVE_MIN_AMOUNT"/>
+                <field name="max_amount" type="text" label="VMPAYMENT_FLUTTERWAVE_MAX_AMOUNT"
+                       description="VMPAYMENT_FLUTTERWAVE_MAX_AMOUNT"/>
+            </fieldset>
+            <fieldset name="fee">
+                <field name="cost_per_transaction" type="text" label="VMPAYMENT_FLUTTERWAVE_COST_PER_TRANSACTION"
+                       description="VMPAYMENT_FLUTTERWAVE_COST_PER_TRANSACTION"/>
+                <field name="cost_min_transaction" type="text" label="VMPAYMENT_FLUTTERWAVE_COST_MIN_TRANSACTION"
+                       description="VMPAYMENT_FLUTTERWAVE_COST_MIN_TRANSACTION"/>
+                <field name="cost_percent_total" type="text" label="VMPAYMENT_FLUTTERWAVE_COST_PERCENT_TOTAL"
+                       description="VMPAYMENT_FLUTTERWAVE_COST_PERCENT_TOTAL"/>
+                <field name="tax_id" type="vmtaxes" scope="com_virtuemart" label="VMPAYMENT_FLUTTERWAVE_TAX"
+                       description="VMPAYMENT_FLUTTERWAVE_TAX"/>
+            </fieldset>
         </fields>
     </vmconfig>
     <updateservers>
