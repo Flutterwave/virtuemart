@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<extension version="2.5" type="plugin" group="vmpayment" method="upgrade">
+    <name>Flutterwave</name>
+    <creationDate>March 11 2016</creationDate>
+    <author>Flutterwave Team</author>
+    <authorUrl>http://www.flutterwave.com</authorUrl>
+    <copyright>Copyright (C) 2004-2016 Virtuemart Team. All rights reserved.</copyright>
+    <license>http://www.gnu.org/licenses/gpl-3.0.html GNU/GPL</license>
+    <version>3.0.14</version>
+    <description><![CDATA[<a href="http://www.FLUTTERWAVE.com" target="_blank">FLUTTERWAVE</a> is a popular
+	payment provider authorised by the Financial Services Authority of the United Kingdom (FSA). ]]>
+    </description>
+
+    <files>
+        <filename plugin="flutterwave">flutterwave.php</filename>
+        <folder>language</folder>
+        <folder>library</folder>
+        <folder>tmpl</folder>
+    </files>
+    <languages>
+        <language tag="en-GB">en-GB.plg_vmpayment_flutterwave.ini</language>
+    </languages>
+    <vmconfig>
+        <fields name="params">
+            <fieldset name="basic" addfieldpath="/administrator/components/com_virtuemart/fields">
+                <field type="vmtitle" default="VMPAYMENT_FLUTTERWAVE_API_CREDENTIALS"/>
+
+                <field type="text" required="true" name="merchant_key" size="50" label="VMPAYMENT_FLUTTERWAVE_MERCHANT_KEY"
+                       default="" description="VMPAYMENT_FLUTTERWAVE_MERCHANT_KEY"/>
+                <field type="text" required="true" name="api_key" size="50" label="VMPAYMENT_FLUTTERWAVE_API_KEY"
+                       default="" description="VMPAYMENT_FLUTTERWAVE_API_KEY"/>
+
+                <field type="vmtitle" default="VMPAYMENT_FLUTTERWAVE_PLUGIN_STATE"/>
+
+                <field type="radio" retuired="true" name="environment" default="staging"
+                       label="VMPAYMENT_FLUTTERWAVE_DEVELOPMENT_MODE"
+                       description="VMPAYMENT_FLUTTERWAVE_DEVELOPMENT_MODE">
+                    <option value="staging">VMPAYMENT_FLUTTERWAVE_TEST_MODE</option>
+                    <option value="production">VMPAYMENT_FLUTTERWAVE_LIVE_MODE</option>
+                </field>
+            </fieldset>
+        </fields>
+    </vmconfig>
+    <updateservers>
+        <!-- Note: No spaces or linebreaks allowed between the server tags -->
+        <server type="extension" name="VirtueMart3 plg_vmpayment_flutterwave Update Site"><![CDATA[http://virtuemart.net/releases/vm3/plg_vmpayment_FLUTTERWAVE_update.xml]]></server>
+    </updateservers>
+</extension>

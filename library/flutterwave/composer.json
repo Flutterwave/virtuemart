@@ -1,0 +1,19 @@
+{
+    "name": "flutterwave/flutterwave-php",
+    "description": "A flutterwave php binding library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ridwan Olalere",
+            "email": "darilldrems@gmail.com"
+        }
+    ],
+    "require": {
+        "guzzlehttp/guzzle": "~6.0"
+    },
+    "autoload": {
+    "psr-4": {
+      "Flutterwave\\": "src"
+    }
+  }
+}
