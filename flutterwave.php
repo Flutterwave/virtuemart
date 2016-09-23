@@ -165,9 +165,10 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 				$urlVars = json_decode(substr($get_data['lang'], 6, (strpos($get_data['lang'], ',"responsehtml"')-6))."}", true);
 				$update = array(
 						'transaction_ref'=>$urlVars['merchtransactionreference'],
+						'order_number' => $order_number
 				);
 				$verify = $this->_validateCharge($method, $urlVars['merchtransactionreference']);
-				if($verify['responsemessage'] == "Successful") {
+				if(isset($verify['responsemessage']) && $verify['responsemessage'] == "Successful") {
 					$update['gateway_response'] = json_encode($verify);
 					$update['status'] = 'completed';
 					$finalResponse = array("redirect"=>$success_url);
