@@ -159,7 +159,7 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 
 		switch($get_data['ft']) {
 			case "charge":
-				$finalResponse = $this->_chargeCard($method, $order_number, $post_data, $callback_url);
+				$finalResponse = $this->_chargeCard($method, $order_number, $post_data, $payment->payment_order_total, $callback_url);
 			break;
 			case "validate":
 				$urlVars = json_decode(substr($get_data['lang'], 6, (strpos($get_data['lang'], ',"responsehtml"')-6))."}", true);
@@ -205,7 +205,7 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 
 
 
-	function _chargeCard($method, $order_number, $post_data, $callback_url) {
+	function _chargeCard($method, $order_number, $post_data, $charge_amount, $callback_url) {
 		try {
 			$merchantKey = $method->merchant_key;
 			$apiKey = $method->api_key;
@@ -218,7 +218,7 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 				"expiry_month" => $post_data["cardexpmonth"],
 				"expiry_year" => $post_data["cardexpyear"],
 			];
-			$amount = round($payment->payment_order_total, 2);
+			$amount = round($charge_amount, 2);
 			$custId = $order_number;
 			$currency = Currencies::NAIRA;
 			$authModel = AuthModel::VBVSECURECODE;
