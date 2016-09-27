@@ -28,6 +28,8 @@
         </div>
         <div class="year">
             <select name="cardexpyear">
+            <option value="16">2016</option>
+            <option value="17">2017</option>
             <option value="18">2018</option>
             <option value="19">2019</option>
             <option value="20">2020</option>
@@ -50,54 +52,65 @@
         </div>
         </div>
 
+        <!-- Buttons -->
+        <button id="sub" class="btn btn-default" type="submit">Complete Payment</button>
+
+        <div id="dialog" style="display:none">
+            <iframe  width="500" height="500" id="ppb3" style="border:none;z-index:1002;background:#eee;" webkitallowfullscreen="" mozallowfullscreen="" allowfullscreen="">
+                <p>Your browser does not support iframes.</p>
+            </iframe>
+        </div>
+
         <script type="text/javascript" charset="UTF-8">
             var $ = jQuery;
             $(document).ready(function() {
                 var x = false;
-                var r = false;
-                var y = 0;
+                var r = '#';
 
                 $('#chrgcrd').submit(function(event){
                     event.preventDefault();
+                    $('#sub').prop("disabled",true);
                     $.post('{{actionUrl}}', $('#chrgcrd').serializeArray(), function(result){
+                        $('#sub').prop("disabled",false);
                         var data = JSON.parse(result);
+                        var content = "Payment failed, please verify payment details.";
                         if(data.status=='ok') {
-                            x = window.open('', '_blank', 'height=570,width=520,scrollbars=yes,status=yes');
-                            x.document.open();
-                            x.document.write(data.resp.data.responsehtml);
-                            x.document.close();
-                            pollUrl();
+                            content = (data.resp.data.responsehtml) ?
+                                data.resp.data.responsehtml
+                                : data.resp.data.responsemessage;
                         }
+
+                        $("#dialog").dialog({
+                            position: {my: "center top"},
+                            width: 500,
+                            height: "auto",
+                            modal: true,
+                            open: function() {
+                                $('.ui-widget-overlay').addClass('custom-overlay');
+                            },
+                            close: function() {
+                                $('.ui-widget-overlay').removeClass('custom-overlay');
+                            } 
+                        });
+                        x = document.getElementById('ppb3').contentWindow.document;
+                        x.open();
+                        x.write(content);
+                        x.close();
                     });
                 });
 
-                function pollUrl() {
-                    window.setTimeout(function(){
-                        if (x && x.location.href.indexOf("com_virtuemart") >= 0) {
-                            r = x.location.href;
-                            x.close();
-                            x = false;
-                            getRedirectUrl(r);
-                            console.log(r);
-                        } else {
-                            y++;
-                            if(y < 360) pollUrl();
-                        }
-                    }, 500)
-                }
-
-                function getRedirectUrl(requestUrl) {
-                    $.get(requestUrl, function(result){
-                        var data = JSON.parse(result);
-                        if(data.status=='ok') {
-                            window.location = data.resp.redirect;
-                        }
-                    });
-                }
+                var eventMethod = window.addEventListener ? "addEventListener" : "attachEvent";
+                var eventer = window[eventMethod];
+                var messageEvent = eventMethod == "attachEvent" ? "onmessage" : "message";
+                eventer(messageEvent,function(e) {
+                    $("#dialog").dialog('close');
+                    document.getElementById('ppb3').remove();
+                    console.log(e.origin);
+                    r = e.data;
+                    // if (e.origin != '{{baseUrl}}') r = '{{cancelUrl}}';
+                    window.location = r;
+                },false);
             });
         </script>
-
-        <!-- Buttons -->
-        <button type="submit">Complete Payment</button>
     </div>
-    </form>
+</form>
