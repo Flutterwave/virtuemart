@@ -27,7 +27,6 @@ use Flutterwave\FlutterEncrypt;
 */
 
 /*
-call orders
 - checkout page (list paymethods)
 	constructor
 	plgVmOnCheckAutomaticSelectedPayment
@@ -41,7 +40,6 @@ call orders
 - backend - save payment
 	plgVmSetOnTablePluginParamsPayment
 	plgVmOnStoreInstallPaymentPluginTable
-
 */
 
 class plgVmPaymentFlutterwave extends vmPSPlugin {
@@ -107,8 +105,7 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 	 */
 
 	function plgVmOnPaymentResponseReceived(&$html,&$paymentResponse) {
-		throw new Exception("ran this");
-		$html = "<h1>HEADER</h1>";
+		$html = "<h4>Order Completed</h4>";
 		// echo "<pre>"; print_r($_GET); exit();
 		// $mb_data = vRequest::getPost();	
 		return true;
@@ -156,52 +153,49 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		}
 
 		$finalResponse = false;
+		$html = "";
 
 		switch($get_data['ft']) {
 			case "charge":
 				$finalResponse = $this->_chargeCard($method, $order_number, $post_data, $payment->payment_order_total, $callback_url);
+				$html = json_encode(array(
+					"status"=>'ok',
+					"resp"=>$finalResponse
+				));
 			break;
 			case "validate":
 				$urlVars = json_decode(substr($get_data['lang'], 6, (strpos($get_data['lang'], ',"responsehtml"')-6))."}", true);
 				$update = array(
-						'transaction_ref'=>$urlVars['merchtransactionreference'],
-						'order_number' => $order_number
+					'transaction_ref'=>$urlVars['merchtransactionreference'],
+					'order_number' => $order_number
 				);
 				$verify = $this->_validateCharge($method, $urlVars['merchtransactionreference']);
+
 				if(isset($verify['responsemessage']) && $verify['responsemessage'] == "Successful") {
 					$update['gateway_response'] = json_encode($verify);
 					$update['status'] = 'completed';
 					$finalResponse = array("redirect"=>$success_url);
-					// save gw_response to db
 				} else {
 					$update['status'] = 'failed';
 					$finalResponse = array("redirect"=>$cancel_url);
 				}
 				$this->storePSPluginInternalData ($update, 'virtuemart_order_id', TRUE);
+
+				$html .= "<span>Please wait ...</span>";
+				$html .= '<div style="display:none">';
+				// $html .= '<pre id="json">'.json_encode($finalResponse).'</pre>';
+				$html .= '<script type="text/javascript" charset="UTF-8">';
+				$html .= 'setInterval(function() {';
+				$html .= '	parent.postMessage("'. $finalResponse['redirect'] .'","'. JURI::root () .'");';
+				$html .= '},1000);';
+				$html .= '</script>';
+				$html .= '</div>';
 			break;
 		}
 
-		$response = array(
-			"status"=>'ok',
-			"resp"=>$finalResponse
-		);
-
-		// echo "<pre>"; 
-		// print_r(array(
-		// 	vRequest::getPost(), 
-		// 	vRequest::getGet(),
-		// 	$order_number,
-		// 	$payment,
-		// 	$finalResponse,
-		// 	$this->selectedThisElement ($method->payment_element),
-		// 	json_decode(substr($get_data['lang'], 6, (strpos($get_data['lang'], ',"responsehtml"')-6))."}", true),
-		// 	$method
-		// 	)
-		// ); exit();
-
-		echo json_encode($response);
-		exit();
+		echo $html;
 		// not using return forcefully.
+		exit();
 	}
 
 
@@ -499,7 +493,6 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 				$order['details']['BT']->order_number .'&ft=charge'.'&lang='.vRequest::getCmd('lang','')
 		);
 
-
 		// Prepare data that should be stored in the database
 		$dbValues['user_session'] = $return_context;
 		$dbValues['order_number'] = $order['details']['BT']->order_number;
@@ -513,9 +506,15 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		$this->getVmPluginCreateTableSQL();
 		$this->storePSPluginInternalData ($dbValues);
 
-		// iframe to load card / account payment.
-		$html = $this->_chargeCardView('chargecard', array('actionUrl'=>$links['status']));
+		$document = JFactory::getDocument();
+		$document->addStyleDeclaration('.ui-widget-overlay.custom-overlay { background-color: black; background-image: none; opacity: 0.9; z-index: 1001; position:absolute; top:0px; left: 0px;}');
 
+		// iframe to load card / account payment.
+		$html = $this->_chargeCardView('chargecard', array(
+			'actionUrl'=>$links['status'], 
+			'baseUrl'=>JURI::root (),
+			'cancelUrl'=>$links['cancel']
+		));
 
 		$cart->_confirmDone = FALSE;
 		$cart->_dataValidated = FALSE;
