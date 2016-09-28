@@ -85,6 +85,8 @@
                             width: 500,
                             height: "auto",
                             modal: true,
+                            closeOnEscape: true,
+                            position: ['center',70],
                             open: function() {
                                 $('.ui-widget-overlay').addClass('custom-overlay');
                             },

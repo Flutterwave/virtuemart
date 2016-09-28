@@ -50,7 +50,28 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		$this->tableFields = array_keys ($this->getTableSQLFields ());
 		$this->_tablepkey = 'id';
 		$this->_tableId = 'id';
-		$varsToPush = $this->getVarsToPush (); // returns Array()
+		// $varsToPush = $this->getVarsToPush (); // returns Array()
+		$varsToPush = array(
+            'status_pending' => array('', 'char'),
+            'status_success' => array('', 'char'),
+            'status_canceled' => array('', 'char'),
+            'min_amount' => array(0, 'int'),
+            'max_amount' => array(0, 'int'),
+            'tax_id' => array(0, 'char'),
+			'merchant_key' => array('', 'char'),
+			'api_key' => array('', 'char'),
+			'accepted_payment' => array('', 'char'),
+			'payment_currency' => array('', 'char'),
+			'send_invoice_on_order_null' => array('', 'char'),
+			'payment_logos' => array('', 'char'),
+			'payment_info' => array('', 'char'),
+			'countries' => array('', 'char'),
+			'cost_per_transaction' => array(0, 'int'),
+			'cost_min_transaction' => array(0, 'int'),
+			'cost_percent_total' => array(0, 'int'),
+			'environment' => array('', 'char'),
+
+        );
 		$this->setConfigParameterable ($this->_configTableFieldName, $varsToPush);
 	}
 
@@ -60,10 +81,10 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 	 * Create the table for this plugin if it does not yet exist.
 	 */
 	public function getVmPluginCreateTableSQL () {
-		// throw new Exception("got to create table");
 		$db = JFactory::getDBO ();
 		$db->setQuery ($this->createTableSQL ('Payment Flutterwave Table'));
-		return $db->loadResult ();
+		// extend query string with unique transaction_ref column
+		return $db->loadResult();
 	}
 
 
@@ -137,7 +158,7 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		if (!isset($order_number)) {
 			return;
 		}
-		
+
 		if (!($virtuemart_order_id = VirtueMartModelOrders::getOrderIdByOrderNumber ($order_number))) {
 			return;
 		}
@@ -148,10 +169,12 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		}
 
 		$method = $this->getVmPluginMethod ($payment->virtuemart_paymentmethod_id);
-		if (!$this->selectedThisElement ($method->payment_element)) {
+		if (!($this->selectedThisElement ($method->payment_element))) {
 			return FALSE;
 		}
 
+		$modelOrder = VmModel::getModel ('orders');
+		$order = array();
 		$finalResponse = false;
 		$html = "";
 
@@ -165,25 +188,33 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 			break;
 			case "validate":
 				$urlVars = json_decode(substr($get_data['lang'], 6, (strpos($get_data['lang'], ',"responsehtml"')-6))."}", true);
-				$update = array(
+				$update_resp = array(
 					'transaction_ref'=>$urlVars['merchtransactionreference'],
 					'order_number' => $order_number
 				);
 				$verify = $this->_validateCharge($method, $urlVars['merchtransactionreference']);
 
-				if(isset($verify['responsemessage']) && $verify['responsemessage'] == "Successful") {
-					$update['gateway_response'] = json_encode($verify);
-					$update['status'] = 'completed';
+				if(isset($verify['data']['responsemessage']) && $verify['data']['responsemessage'] == "Approved") {
+					$order['order_status'] = $method->status_success;
+					$order['comments'] = 'Payment for ' . $order_number . ' was Successful';
+					$update_resp['gateway_response'] = json_encode($verify);
+					$update_resp['payment_status'] = 'completed';
 					$finalResponse = array("redirect"=>$success_url);
+					$this->emptyCart($payment->user_session, $order_number);
 				} else {
-					$update['status'] = 'failed';
+					$order['order_status'] = $method->status_canceled;
+					$order['comments'] = 'Payment for ' . $order_number . ' was Cancelled';
+					$update_resp['payment_status'] = 'failed';
 					$finalResponse = array("redirect"=>$cancel_url);
 				}
-				$this->storePSPluginInternalData ($update, 'virtuemart_order_id', TRUE);
+
+				$this->storePSPluginInternalData ($update_resp, 'virtuemart_order_id', TRUE);
+				$modelOrder->updateStatusForOneOrder ($virtuemart_order_id, $order, TRUE);
 
 				$html .= "<span>Please wait ...</span>";
 				$html .= '<div style="display:none">';
-				// $html .= '<pre id="json">'.json_encode($finalResponse).'</pre>';
+				// echo"<pre>";print_r(array($finalResponse, $verify, $order, $update_resp, $urlVars, $get_data, $payment, $method));exit();
+				// $html .= '<pre id="json">'.json_encode(array($finalResponse, $update_resp, $urlVars, $get_data)).'</pre>';
 				$html .= '<script type="text/javascript" charset="UTF-8">';
 				$html .= 'setInterval(function() {';
 				$html .= '	parent.postMessage("'. $finalResponse['redirect'] .'","'. JURI::root () .'");';
@@ -456,8 +487,7 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		$vendorModel->addImages ($vendor, 1);
 		$this->getPaymentCurrency ($method);
 
-		$q = 'SELECT `currency_code_3` FROM `#__virtuemart_currencies` WHERE `virtuemart_currency_id`="' .
-			$method->payment_currency . '" ';
+		$q = 'SELECT `currency_code_3` FROM `#__virtuemart_currencies` WHERE `virtuemart_currency_id`="' . $method->payment_currency . '" ';
 		$db = JFactory::getDBO ();
 		$db->setQuery ($q);
 		$currency_code_3 = $db->loadResult ();
@@ -507,7 +537,9 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		$this->storePSPluginInternalData ($dbValues);
 
 		$document = JFactory::getDocument();
-		$document->addStyleDeclaration('.ui-widget-overlay.custom-overlay { background-color: black; background-image: none; opacity: 0.9; z-index: 1001; position:absolute; top:0px; left: 0px;}');
+		$document->addStyleDeclaration('
+			.ui-widget-overlay.custom-overlay { background-color: black; background-image: none; opacity: 0.9; z-index: 1001; position:absolute; top:0px; left: 0px;}
+		');
 
 		// iframe to load card / account payment.
 		$html = $this->_chargeCardView('chargecard', array(

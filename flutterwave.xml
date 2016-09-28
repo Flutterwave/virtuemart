@@ -30,22 +30,28 @@
                 <field type="text" required="true" name="api_key" size="50" label="VMPAYMENT_FLUTTERWAVE_API_KEY"
                        default="" description="VMPAYMENT_FLUTTERWAVE_API_KEY"/>
 
-                <field type="vmtitle" default="VMPAYMENT_FLUTTERWAVE_PLUGIN_STATE"/>
+                <field type="vmtitle" default="VMPAYMENT_FLUTTERWAVE_ORDER_STATUS_SECTION_DESC"/>
+                <field name="status_pending" type="vmorderstate" scope="com_virtuemart" default="P"
+                        label="VMPAYMENT_FLUTTERWAVE_STATUS_PENDING" description="VMPAYMENT_FLUTTERWAVE_STATUS_PENDING"/>
+                <field name="status_success" type="vmorderstate" scope="com_virtuemart" default="C"
+                        label="VMPAYMENT_FLUTTERWAVE_STATUS_SUCCESS" description="VMPAYMENT_FLUTTERWAVE_STATUS_SUCCESS"/>
+                <field name="status_canceled" type="vmorderstate" scope="com_virtuemart" default="X"
+                        label="VMPAYMENT_FLUTTERWAVE_STATUS_CANCEL" description="VMPAYMENT_FLUTTERWAVE_STATUS_CANCEL"/>
+                <field name="status_refunded" type="vmorderstate" scope="com_virtuemart" default="R"
+                        label="VMPAYMENT_FLUTTERWAVE_STATUS_REFUND" description="VMPAYMENT_FLUTTERWAVE_STATUS_REFUND"/>
 
-                <field type="radio" retuired="true" name="environment" default="staging"
-                       label="VMPAYMENT_FLUTTERWAVE_DEVELOPMENT_MODE"
-                       description="VMPAYMENT_FLUTTERWAVE_DEVELOPMENT_MODE">
-                    <option value="staging">VMPAYMENT_FLUTTERWAVE_TEST_MODE</option>
-                    <option value="production">VMPAYMENT_FLUTTERWAVE_LIVE_MODE</option>
-                </field>
             </fieldset>
             <fieldset name="payment"  addfieldpath="/administrator/components/com_virtuemart/fields">
-                <field type="vmtitle" default="VMPAYMENT_FLUTTERWAVE_API_CREDENTIALS"/>
+                <field type="vmtitle" default="VMPAYMENT_FLUTTERWAVE_PAYMENT_SETTINGS"/>
                 
+                <field name="accepted_payment" type="radio" scope="com_virtuemart" default="card"
+                       label="VMPAYMENT_FLUTTERWAVE_ACCEPT_PAYMENT_WITH"
+                       description="VMPAYMENT_FLUTTERWAVE_ACCEPT_PAYMENT_WITH">
+                    <option value="card">Card</option>
+                    <option value="account">Bank Account</option>
+                </field>
                 <field name="payment_currency" type="vmacceptedcurrency" default="" label="VMPAYMENT_FLUTTERWAVE_CURRENCY"
                        description="VMPAYMENT_FLUTTERWAVE_CURRENCY"/>
-                <field name="status_pending" type="vmorderstate" scope="com_virtuemart" default="U"
-                       label="VMPAYMENT_FLUTTERWAVE_STATUS_PENDING" description="VMPAYMENT_FLUTTERWAVE_STATUS_PENDING"/>
                 <field name="send_invoice_on_order_null" type="radio" scope="com_virtuemart" default="1"
                        label="VMPAYMENT_FLUTTERWAVE_SEND_INVOICE_ON_ORDER_NULL"
                        description="VMPAYMENT_FLUTTERWAVE_SEND_INVOICE_ON_ORDER_NULL">
@@ -78,6 +84,16 @@
                        description="VMPAYMENT_FLUTTERWAVE_COST_PERCENT_TOTAL"/>
                 <field name="tax_id" type="vmtaxes" scope="com_virtuemart" label="VMPAYMENT_FLUTTERWAVE_TAX"
                        description="VMPAYMENT_FLUTTERWAVE_TAX"/>
+            </fieldset>
+            <fieldset name="debug">
+                <field type="vmtitle" default="VMPAYMENT_FLUTTERWAVE_PLUGIN_STATE"/>
+
+                <field type="radio" retuired="true" name="environment" default="staging"
+                       label="VMPAYMENT_FLUTTERWAVE_DEVELOPMENT_MODE"
+                       description="VMPAYMENT_FLUTTERWAVE_DEVELOPMENT_MODE">
+                    <option value="staging">VMPAYMENT_FLUTTERWAVE_TEST_MODE</option>
+                    <option value="production">VMPAYMENT_FLUTTERWAVE_LIVE_MODE</option>
+                </field>
             </fieldset>
         </fields>
     </vmconfig>
