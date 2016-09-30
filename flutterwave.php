@@ -126,9 +126,12 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 	 */
 
 	function plgVmOnPaymentResponseReceived(&$html,&$paymentResponse) {
-		$html = "<h4>Order Completed</h4>";
-		// echo "<pre>"; print_r($_GET); exit();
-		// $mb_data = vRequest::getPost();	
+		$order_url = JURI::root () .'index.php?option=com_virtuemart&view=orders&layout=details&order_number='.$_GET['on'];
+		$html = '
+			<h4>Order Completed</h4>
+			<br>
+			<a class="btn btn-default" href="'.$order_url.'">Order Details</a>
+		';
 		return true;
 	}
 
