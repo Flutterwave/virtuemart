@@ -7,6 +7,7 @@ if (!class_exists ('vmPSPlugin')) {
 
 require(JPATH_PLUGINS.DS.'vmpayment'.DS.'flutterwave'.DS.'library'.DS.'flutterwave'.DS.'vendor'.DS.'autoload.php');
 use Flutterwave\Card;
+use Flutterwave\Account;
 use Flutterwave\Flutterwave;
 use Flutterwave\AuthModel;
 use Flutterwave\Currencies;
@@ -26,21 +27,6 @@ use Flutterwave\FlutterEncrypt;
 * http://virtuemart.org
 */
 
-/*
-- checkout page (list paymethods)
-	constructor
-	plgVmOnCheckAutomaticSelectedPayment
-	plgVmDisplayListFEPayment
-- checkout page (pick paymethod)
-	xxx
-- checkout submit
-	plgVmConfirmedOrder
-- checkout submit completed
-	plgVmOnPaymentResponseReceived
-- backend - save payment
-	plgVmSetOnTablePluginParamsPayment
-	plgVmOnStoreInstallPaymentPluginTable
-*/
 
 class plgVmPaymentFlutterwave extends vmPSPlugin {
 
@@ -146,6 +132,7 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		$get_data = vRequest::getGet();
 		$post_data = vRequest::getPost();
 		$order_number = $get_data['on'];
+		$address = (($cart->ST == 0) ? $cart->BT : $cart->ST);
 		$success_url = JURI::root ().'index.php?option=com_virtuemart&view=pluginresponse&task=pluginresponsereceived&on=' .$order_number;
 		$cancel_url = JURI::root ().'index.php?option=com_virtuemart&view=pluginresponse&task=pluginUserPaymentCancel&on=' .$order_number;
 		$callback_url = JURI::root ().'index.php?option=com_virtuemart&view=pluginresponse&task=pluginnotification&tmpl=component&on=' .$order_number .'&ft=validate'.'&lang='.vRequest::getCmd('lang','');
@@ -182,49 +169,99 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		$html = "";
 
 		switch($get_data['ft']) {
+
 			case "charge":
-				$finalResponse = $this->_chargeCard($method, $order_number, $post_data, $payment->payment_order_total, $callback_url);
+
+				if($method->accepted_payment == 'card') {
+					$finalResponse = $this->_chargeCard($method, $order_number, $post_data, $payment->payment_order_total, $callback_url);
+				} else if ($method->accepted_payment == 'account') {
+					$finalResponse = $this->_chargeAccount($method, $order_number, $post_data, $payment->payment_order_total, $callback_url);
+					if($finalResponse['data']['responsemessage'] == 'Transaction Successful') {
+						$update_resp = array(
+							'transaction_ref'=>$urlVars['merchtransactionreference'],
+							'order_number' => $order_number,
+							'gateway_response' => json_encode($verify),
+							'payment_status' => 'completed'
+						);
+						$order['order_status'] = $method->status_success;
+						$order['comments'] = 'Payment for ' . $order_number . ' was Successful';
+						$this->emptyCart($payment->user_session, $order_number);
+						$this->storePSPluginInternalData ($update_resp, 'virtuemart_order_id', TRUE);
+						$modelOrder->updateStatusForOneOrder ($virtuemart_order_id, $order, TRUE);
+						$finalResponse['redirect'] = $success_url;
+					}
+				} else {
+					$this->logInfo ('Unknown payment method', 'ERROR');
+					return; 
+				}
+				
 				$html = json_encode(array(
 					"status"=>'ok',
 					"resp"=>$finalResponse
 				));
-			break;
+				break;
+
 			case "validate":
-				$urlVars = json_decode(substr($get_data['lang'], 6, (strpos($get_data['lang'], ',"responsehtml"')-6))."}", true);
+
+				$transaction_successful = false;
+				$finalResponse = array("redirect"=>$cancel_url);
 				$update_resp = array(
-					'transaction_ref'=>$urlVars['merchtransactionreference'],
 					'order_number' => $order_number
 				);
-				$verify = $this->_validateCharge($method, $urlVars['merchtransactionreference']);
+				
+				if($method->accepted_payment == 'card') {
+					$urlVars = json_decode(substr($get_data['lang'], 6, (strpos($get_data['lang'], ',"responsehtml"')-6))."}", true);
+					$verify = $this->_validateCardCharge($method, $urlVars['merchtransactionreference']);
+					$update_resp['transaction_ref'] = $urlVars['merchtransactionreference'];
 
-				if(isset($verify['data']['responsemessage']) && $verify['data']['responsemessage'] == "Approved") {
+					if(isset($verify['data']['responsemessage']) && $verify['data']['responsemessage'] == "Approved") {
+						$transaction_successful = true;
+						$finalResponse = array("redirect"=>$success_url);
+					}
+
+					$html .= "<span>Please wait ...</span>";
+					$html .= '<div style="display:none">';
+					// echo"<pre>";print_r(array($finalResponse, $verify, $order, $update_resp, $urlVars, $get_data, $payment, $method));exit();
+					// $html .= '<pre id="json">'.json_encode(array($finalResponse, $update_resp, $urlVars, $get_data)).'</pre>';
+					$html .= '<script type="text/javascript" charset="UTF-8">';
+					$html .= 'setInterval(function() {';
+					$html .= '	parent.postMessage("'. $finalResponse['redirect'] .'","'. JURI::root () .'");';
+					$html .= '},1000);';
+					$html .= '</script>';
+					$html .= '</div>';
+				} else if ($method->accepted_payment == 'account') {
+					$verify = $this->_validateAccountCharge($method, $post_data['otp'], $post_data['ref']);
+					$update_resp['transaction_ref'] = $verify['data']['transactionreference'];
+
+					if(isset($verify['data']['responsemessage']) && $verify['data']['responsemessage'] == "Successful") {
+						$transaction_successful = true;
+						$finalResponse = array("redirect"=>$success_url);
+					}
+
+					$html = json_encode(array(
+						"status"=>'ok',
+						"resp"=>$finalResponse
+					));
+				} else {
+					$this->logInfo ('Unknown payment method', 'ERROR');
+					return; 
+				}
+
+				if($transaction_successful) {
 					$order['order_status'] = $method->status_success;
 					$order['comments'] = 'Payment for ' . $order_number . ' was Successful';
 					$update_resp['gateway_response'] = json_encode($verify);
 					$update_resp['payment_status'] = 'completed';
-					$finalResponse = array("redirect"=>$success_url);
 					$this->emptyCart($payment->user_session, $order_number);
 				} else {
 					$order['order_status'] = $method->status_canceled;
 					$order['comments'] = 'Payment for ' . $order_number . ' was Cancelled';
 					$update_resp['payment_status'] = 'failed';
-					$finalResponse = array("redirect"=>$cancel_url);
 				}
 
 				$this->storePSPluginInternalData ($update_resp, 'virtuemart_order_id', TRUE);
 				$modelOrder->updateStatusForOneOrder ($virtuemart_order_id, $order, TRUE);
-
-				$html .= "<span>Please wait ...</span>";
-				$html .= '<div style="display:none">';
-				// echo"<pre>";print_r(array($finalResponse, $verify, $order, $update_resp, $urlVars, $get_data, $payment, $method));exit();
-				// $html .= '<pre id="json">'.json_encode(array($finalResponse, $update_resp, $urlVars, $get_data)).'</pre>';
-				$html .= '<script type="text/javascript" charset="UTF-8">';
-				$html .= 'setInterval(function() {';
-				$html .= '	parent.postMessage("'. $finalResponse['redirect'] .'","'. JURI::root () .'");';
-				$html .= '},1000);';
-				$html .= '</script>';
-				$html .= '</div>';
-			break;
+				break;
 		}
 
 		echo $html;
@@ -269,7 +306,59 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 
 
 
-	function _validateCharge($method, $transaction_ref) {
+	function _chargeAccount($method, $order_number, $post_data, $charge_amount, $callback_url) {
+		try {
+			$merchantKey = $method->merchant_key;
+			$apiKey = $method->api_key;
+			$env = $method->environment;
+			Flutterwave::setMerchantCredentials($merchantKey, $apiKey, $env);
+
+
+			$ref = $order_number.mt_rand(10000,99999);
+			$accountNumber = $post_data["accountnumber"];
+			$bankCode = $post_data["bankcode"];
+			$passCode = substr($ref, 0, 12);
+			$paymentDetails = [
+				"amount" => round($charge_amount, 2),
+				"currency" => Currencies::NAIRA,
+				"narration" => "Order Payment ".$order_number,
+				"firstname" => "vm",
+				"lastname" => "pl",
+				"email" => $post_data["customer"]
+			];
+
+			// echo "<pre>"; print_r(array($accountNumber, $bankCode, $passCode, $paymentDetails, $ref)); exit();
+			$response = Account::charge($accountNumber, $bankCode, $passCode, $paymentDetails, $ref);
+			$response = $response->getResponseData();
+			$response['callback'] = $callback_url;
+
+			return $response;
+		} catch(Exception $e) {
+			return $e->getmessage();
+		}
+	}
+
+
+
+	function _validateAccountCharge($method, $otp, $transaction_ref) {
+		try {
+			$merchantKey = $method->merchant_key;
+			$apiKey = $method->api_key;
+			$env = $method->environment;
+			Flutterwave::setMerchantCredentials($merchantKey, $apiKey, $env);
+
+			$response = Account::validate($otp, $transaction_ref);
+			$response = $response->getResponseData();
+
+			return $response;
+		} catch(Exception $e) {
+			return $e->getmessage();
+		}
+	}
+
+
+
+	function _validateCardCharge($method, $transaction_ref) {
 		try {
 			$merchantKey = $method->merchant_key;
 			$apiKey = $method->api_key;
@@ -284,6 +373,9 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 			return $e->getmessage();
 		}
 	}
+
+
+
  
 
 
@@ -439,14 +531,15 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
         return $this->setOnTablePluginParams($name, $id, $table);
     }
 
-	function _chargeCardView($template, $params) {
+	function _chargeView($template, $params) {
 		$path = getcwd().DS.'plugins'.DS.'vmpayment'.DS.'flutterwave'.DS.'tmpl'.DS.$template.'.php';
-		$tmpl = file_get_contents($path);
-
-		foreach($params as $key=>$value) {
-			$tmpl = str_replace("{{".$key."}}", $value, $tmpl);
+		if (isset($params)) {
+			extract($params);
 		}
-		return $tmpl;
+
+		ob_start();
+		require $path;
+		return ob_get_clean();
 	}
 
 
@@ -469,6 +562,7 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 
 		$session = JFactory::getSession ();
 		$return_context = $session->getId ();
+		$address = (($cart->ST == 0) ? $cart->BT : $cart->ST);
 		$this->logInfo ('plgVmConfirmedOrder order number: ' . $order['details']['BT']->order_number, 'message');
 
 		if (!class_exists ('VirtueMartModelOrders')) {
@@ -544,12 +638,48 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 			.ui-widget-overlay.custom-overlay { background-color: black; background-image: none; opacity: 0.9; z-index: 1001; position:absolute; top:0px; left: 0px;}
 		');
 
+		//echo"<pre>";print_r($method);exit();
+
 		// iframe to load card / account payment.
-		$html = $this->_chargeCardView('chargecard', array(
-			'actionUrl'=>$links['status'], 
-			'baseUrl'=>JURI::root (),
-			'cancelUrl'=>$links['cancel']
-		));
+		if($method->accepted_payment == "card") {
+			$html = $this->_chargeView('chargecard', array(
+				'actionUrl'=>$links['status'], 
+				'baseUrl'=>JURI::root (),
+				'cancelUrl'=>$links['cancel']
+			));
+		} elseif ($method->accepted_payment == "account") {
+			$banks = [
+				"044" => "Access Bank",
+				"023" => "CitiBank",
+				"063" => "Diamond Bank",
+				"050" => "Ecobank Plc",
+				"084" => "Enterprise Bank",
+				"070" => "Fidelity Bank",
+				"011" => "First Bank of Nigeria",
+				"214" => "First City Monument Bank",
+				"058" => "GTBank Plc",
+				"030" => "Heritage",
+				"082" => "Keystone Bank",
+				"076" => "Skye Bank",
+				"221" => "Stanbic IBTC Bank",
+				"068" => "Standard Chartered Bank",
+				"232" => "Sterling Bank",
+				"100" => "SunTrust Bank",
+				"032" => "Union Bank",
+				"033" => "United Bank for Africa",
+				"215" => "Unity Bank",
+				"035" => "Wema Bank",
+				"057" => "Zenith Bank"
+			];
+
+			$html = $this->_chargeView('chargeaccount', array(
+				'actionUrl'=>$links['status'], 
+				'baseUrl'=>JURI::root (),
+				'cancelUrl'=>$links['cancel'],
+				'customeremail'=>$address->email,
+				'banks'=>$banks
+			));
+		}
 
 		$cart->_confirmDone = FALSE;
 		$cart->_dataValidated = FALSE;

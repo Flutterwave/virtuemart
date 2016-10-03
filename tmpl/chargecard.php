@@ -70,7 +70,7 @@
                 $('#chrgcrd').submit(function(event){
                     event.preventDefault();
                     $('#sub').prop("disabled",true);
-                    $.post('{{actionUrl}}', $('#chrgcrd').serializeArray(), function(result){
+                    $.post('<?php echo $actionUrl ?>', $('#chrgcrd').serializeArray(), function(result){
                         $('#sub').prop("disabled",false);
                         var data = JSON.parse(result);
                         var content = "Payment failed, please verify payment details.";
@@ -109,7 +109,7 @@
                     document.getElementById('ppb3').remove();
                     console.log(e.origin);
                     r = e.data;
-                    // if (e.origin != '{{baseUrl}}') r = '{{cancelUrl}}';
+                    // if (e.origin != '<?php echo $baseUrl ?>') r = '<?php echo $cancelUrl ?>';
                     window.location = r;
                 },false);
             });
