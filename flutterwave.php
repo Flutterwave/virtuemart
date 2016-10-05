@@ -132,7 +132,6 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 		$get_data = vRequest::getGet();
 		$post_data = vRequest::getPost();
 		$order_number = $get_data['on'];
-		$address = (($cart->ST == 0) ? $cart->BT : $cart->ST);
 		$success_url = JURI::root ().'index.php?option=com_virtuemart&view=pluginresponse&task=pluginresponsereceived&on=' .$order_number;
 		$cancel_url = JURI::root ().'index.php?option=com_virtuemart&view=pluginresponse&task=pluginUserPaymentCancel&on=' .$order_number;
 		$callback_url = JURI::root ().'index.php?option=com_virtuemart&view=pluginresponse&task=pluginnotification&tmpl=component&on=' .$order_number .'&ft=validate'.'&lang='.vRequest::getCmd('lang','');
@@ -178,9 +177,9 @@ class plgVmPaymentFlutterwave extends vmPSPlugin {
 					$finalResponse = $this->_chargeAccount($method, $order_number, $post_data, $payment->payment_order_total, $callback_url);
 					if($finalResponse['data']['responsemessage'] == 'Transaction Successful') {
 						$update_resp = array(
-							'transaction_ref'=>$urlVars['merchtransactionreference'],
+							'transaction_ref'=>$finalResponse['data']['transactionreference'],
 							'order_number' => $order_number,
-							'gateway_response' => json_encode($verify),
+							'gateway_response' => json_encode($finalResponse),
 							'payment_status' => 'completed'
 						);
 						$order['order_status'] = $method->status_success;
